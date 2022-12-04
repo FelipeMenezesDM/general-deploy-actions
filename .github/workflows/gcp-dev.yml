@@ -100,7 +100,7 @@ jobs:
       - name: Executing PHPMD
         uses: GeneaLabs/action-reviewdog-phpmd@1.0.0
         with:
-          github_token: ${{ inputs.token }}
+          github_token: ${{ github.token }}
           level: warning
           reporter: github-check
           standard: cleancode,codesize,controversial,design,naming,unusedcode
