@@ -111,7 +111,7 @@ jobs:
       - validate-composer-cache
       - validate-install-dependencies
       - validate-phpmd
-    name:  Test / Unit
+    name: Test / Unit
     environment: Test
     runs-on: ubuntu-latest
     steps:
@@ -133,15 +133,14 @@ jobs:
     environment: Test
     runs-on: ubuntu-latest
     steps:
-      - run: echo "No implemented"
-#      - name: Checkout code
-#        uses: actions/checkout@v3
-#      - name: Installing dependencies
-#        run: composer install --no-progress
-#      - name: Gerenate keys
-#        run: php artisan passport:keys --force
-#      - name: Run unit tests
-#        run: composer run test-feature
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Installing dependencies
+        run: composer install --no-progress
+      - name: Gerenate keys
+        run: php artisan passport:keys --force
+      - name: Run unit tests
+        run: composer run test-feature
   deploy:
     needs:
       - test-unit
@@ -165,7 +164,7 @@ jobs:
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Migrate
-        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "php+ artisan migrate --seed && php artisan make:main-client --with-secrets"
+        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "php artisan migrate --seed && php artisan make:main-client --with-secrets"
       - name: Deploy
         run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ env.REGION }} --memory ${{ env.MEMORY }} --min-instances ${{ env.MIN_INSTANCE }} --max-instances ${{ env.MAX_INSTANCE }} --platform managed --port ${{ env.PORT }} --allow-unauthenticated
       - name: Ouput
