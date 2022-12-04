@@ -1,6 +1,15 @@
 name: Build and Deploy to GCP - DEV
 on:
   workflow_call:
+    secrets:
+      GCP_REGION:
+        required: true
+      GCP_CONTAINER_REGISTRY:
+        required: true
+      GCP_PROJECT_ID:
+        required: true
+      GCP_CREDENTIALS:
+        required: true
     inputs:
       service:
         type: string
@@ -30,15 +39,6 @@ on:
         type: string
         required: false
         default: DEV
-    secrets:
-      GCP_REGION:
-        required: true
-      GCP_CONTAINER_REGISTRY:
-        required: true
-      GCP_PROJECT_ID:
-        required: true
-      GCP_CREDENTIALS:
-        required: true
 env:
   SERVICE: ${{ inputs.service }}-develop
   REGION: ${{ secrets.GCP_REGION }}
