@@ -17,9 +17,6 @@ on:
       sha:
         type: string
         required: true
-      token:
-        type: string
-        required: true
       port:
         type: string
         required: true
