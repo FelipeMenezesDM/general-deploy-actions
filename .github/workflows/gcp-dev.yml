@@ -155,7 +155,7 @@ jobs:
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Migrate
-        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "php artisan migrate --seed && php artisan make:main-client --with-secrets"
+        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "php artisan migrate -vvv --seed && php artisan make:main-client --with-secrets"
       - name: Deploy
         run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ env.REGION }} --memory ${{ env.MEMORY }} --min-instances ${{ env.MIN_INSTANCE }} --max-instances ${{ env.MAX_INSTANCE }} --platform managed --port ${{ env.PORT }} --allow-unauthenticated
       - name: Ouput
