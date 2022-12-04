@@ -146,7 +146,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: GCP Auth
-        uses: google-github-actions/auth@v0
+        uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ env.CREDENTIALS }}
       - name: Docker Auth
@@ -156,7 +156,7 @@ jobs:
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Migrate
-        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "php artisan migrate -vvv --seed && php artisan make:main-client --with-secrets"
+        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "cat > /auth-gcloud.json && export GOOGLE_APPLICATION_CREDENTIALS=/auth-gcloud.json && php artisan migrate --seed && php artisan make:main-client --with-secrets" < $GOOGLE_APPLICATION_CREDENTIALS
       - name: Deploy
         run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ env.REGION }} --memory ${{ env.MEMORY }} --min-instances ${{ env.MIN_INSTANCE }} --max-instances ${{ env.MAX_INSTANCE }} --platform managed --port ${{ env.PORT }} --allow-unauthenticated
       - name: Ouput
