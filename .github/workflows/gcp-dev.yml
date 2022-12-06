@@ -36,6 +36,10 @@ on:
         type: string
         required: false
         default: DEV
+      custom-migrate-script:
+        type: string
+        required: false
+        default: echo 'no custom migrate script'
 env:
   SERVICE: ${{ inputs.service }}-develop
   REGION: ${{ secrets.GCP_REGION }}
@@ -156,7 +160,7 @@ jobs:
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Migrate
-        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "cat > /auth-gcloud.json && export GOOGLE_APPLICATION_CREDENTIALS=/auth-gcloud.json && php artisan migrate --seed && php artisan make:main-client --with-secrets" < $GOOGLE_APPLICATION_CREDENTIALS
+        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "cat > /auth-gcloud.json && export GOOGLE_APPLICATION_CREDENTIALS=/auth-gcloud.json && php artisan migrate --seed && ${{ inputs.custom-migrate-script }}" < $GOOGLE_APPLICATION_CREDENTIALS
       - name: Deploy
         run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ env.REGION }} --memory ${{ env.MEMORY }} --min-instances ${{ env.MIN_INSTANCE }} --max-instances ${{ env.MAX_INSTANCE }} --platform managed --port ${{ env.PORT }} --allow-unauthenticated
       - name: Ouput
