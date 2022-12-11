@@ -32,7 +32,7 @@ on:
         type: string
         required: false
         default: 128Mi
-      env:
+      environment:
         type: string
         required: false
         default: DEV
@@ -54,7 +54,8 @@ env:
   MIN_INSTANCE: ${{ inputs.min-instance }}
   MAX_INSTANCE: ${{ inputs.max-instance }}
   MEMORY: ${{ inputs.memory }}
-  ENVIRONMENT: ${{ inputs.env }}
+  ENVIRONMENT: ${{ inputs.environment }}
+  ON_GITHUB_ACTIONS: true
 jobs:
   initializing:
     name: Initializing
