@@ -54,7 +54,7 @@ env:
   MIN_INSTANCE: ${{ inputs.min-instance }}
   MAX_INSTANCE: ${{ inputs.max-instance }}
   MEMORY: ${{ inputs.memory }}
-  APP_ENV: ${{ inputs.env }}
+  ENVIRONMENT: ${{ inputs.env }}
 jobs:
   initializing:
     name: Initializing
@@ -160,13 +160,13 @@ jobs:
       - name: Docker Auth
         run: gcloud auth configure-docker ${{ env.CONTAINER_REGISTRY }} --quiet
       - name: Build
-        run: docker build -t ${{ env.IMAGE }} . -f app.dockerfile --build-arg APP_ENV=${{ env.APP_ENV }}
+        run: docker build -t ${{ env.IMAGE }} . -f app.dockerfile --build-arg APP_ENV=${{ env.ENVIRONMENT }}
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Migrate
         run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "cat > /auth-gcloud.json && export GOOGLE_APPLICATION_CREDENTIALS=/auth-gcloud.json && php artisan migrate --seed && ${{ inputs.custom-migrate-script }}" < $GOOGLE_APPLICATION_CREDENTIALS
       - name: Deploy
-        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ env.REGION }} --memory ${{ env.MEMORY }} --min-instances ${{ env.MIN_INSTANCE }} --max-instances ${{ env.MAX_INSTANCE }} --platform managed --port ${{ env.PORT }} --set-env-vars "ENABLE_SSL=${{ inputs.enable-ssl }}" --allow-unauthenticated
+        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ env.REGION }} --memory ${{ env.MEMORY }} --min-instances ${{ env.MIN_INSTANCE }} --max-instances ${{ env.MAX_INSTANCE }} --platform managed --port ${{ env.PORT }} --timeout=180 --set-env-vars "ENABLE_SSL=${{ inputs.enable-ssl }}" --allow-unauthenticated
       - name: Ouput
         run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ env.REGION }} --format 'value(status.url)') >> $GITHUB_OUTPUT
         id: output
