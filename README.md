@@ -25,7 +25,7 @@ Para utilizar, basta realizar sua injeção como um workflow reutilizável no pr
     jobs:
       ci-cd:
         name: CI/CD
-        uses: felipemenezesdm/laravel-deploy-actions/.github/workflows/gcp/development.yml@v1
+        uses: felipemenezesdm/laravel-deploy-actions/.github/workflows/gcp-dev.yml@v1
         secrets: inherit
         with:
           custom-migrate-script: php artisan make:main-client --with-secrets
