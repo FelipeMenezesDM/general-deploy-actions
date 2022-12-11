@@ -55,7 +55,6 @@ env:
   MAX_INSTANCE: ${{ inputs.max-instance }}
   MEMORY: ${{ inputs.memory }}
   ENVIRONMENT: ${{ inputs.environment }}
-  ON_GITHUB_ACTIONS: true
 jobs:
   initializing:
     name: Initializing
