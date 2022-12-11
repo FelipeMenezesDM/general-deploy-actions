@@ -54,7 +54,7 @@ env:
   MIN_INSTANCE: ${{ inputs.min-instance }}
   MAX_INSTANCE: ${{ inputs.max-instance }}
   MEMORY: ${{ inputs.memory }}
-  APP_ENV: ${{ inputs.env }}
+  ENVIRONMENT: ${{ inputs.env }}
 jobs:
   initializing:
     name: Initializing
@@ -160,7 +160,7 @@ jobs:
       - name: Docker Auth
         run: gcloud auth configure-docker ${{ env.CONTAINER_REGISTRY }} --quiet
       - name: Build
-        run: docker build -t ${{ env.IMAGE }} . -f app.dockerfile --build-arg APP_ENV=${{ env.APP_ENV }}
+        run: docker build -t ${{ env.IMAGE }} . -f app.dockerfile --build-arg APP_ENV=${{ env.ENVIRONMENT }}
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Migrate
