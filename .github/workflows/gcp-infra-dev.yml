@@ -4,7 +4,7 @@ on:
     GCP_CREDENTIALS:
       required: true
 env:
-  CREDENTIALS: ${{ secrets.CREDENTIALS }}
+  CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
   ENVIRONMENT: dev
 jobs:
   initializing:
