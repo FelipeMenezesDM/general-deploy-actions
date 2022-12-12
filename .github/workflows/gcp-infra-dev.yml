@@ -1,8 +1,9 @@
 name: Deploy to GCP - DEV
 on:
   workflow_call:
-    GCP_CREDENTIALS:
-      required: true
+    secrets:
+      GCP_CREDENTIALS:
+        required: true
 env:
   CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
   ENVIRONMENT: dev
