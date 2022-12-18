@@ -49,8 +49,16 @@ jobs:
         run: terraform apply -auto-approve -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
-  finishing:
+  create-pr:
     needs: deploy
+    name: Create PR to Homologation
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - name: Create PR
+        uses: actions/checkout@v3
+  finishing:
+    needs: create-pr
     name: Finishing
     runs-on: ubuntu-latest
     steps:
