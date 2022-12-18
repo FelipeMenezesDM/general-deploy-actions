@@ -6,9 +6,9 @@ on:
         required: true
       GCP_CONTAINER_REGISTRY:
         required: true
-      GCP_PROJECT_ID:
+      GCP_PROJECT_ID_DEV:
         required: true
-      GCP_CREDENTIALS:
+      GCP_CREDENTIALS_DEV:
         required: true
     inputs:
       service:
@@ -32,10 +32,6 @@ on:
         type: string
         required: false
         default: 128Mi
-      environment:
-        type: string
-        required: false
-        default: DEV
       custom-migrate-script:
         type: string
         required: false
@@ -48,13 +44,13 @@ env:
   SERVICE: ${{ inputs.service }}-develop
   REGION: ${{ secrets.GCP_REGION }}
   CONTAINER_REGISTRY: ${{ secrets.GCP_CONTAINER_REGISTRY }}
-  IMAGE: ${{ secrets.GCP_CONTAINER_REGISTRY }}/${{ secrets.GCP_PROJECT_ID }}/${{ inputs.service }}-develop:${{ inputs.sha }}
-  CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+  IMAGE: ${{ secrets.GCP_CONTAINER_REGISTRY }}/${{ secrets.GCP_PROJECT_ID_DEV }}/${{ inputs.service }}-develop:${{ inputs.sha }}
+  CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_DEV }}
   PORT: ${{ inputs.port }}
   MIN_INSTANCE: ${{ inputs.min-instance }}
   MAX_INSTANCE: ${{ inputs.max-instance }}
   MEMORY: ${{ inputs.memory }}
-  ENVIRONMENT: ${{ inputs.environment }}
+  ENVIRONMENT: DEV
 jobs:
   initializing:
     name: Initializing

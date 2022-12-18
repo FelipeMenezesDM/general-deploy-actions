@@ -2,10 +2,10 @@ name: Deploy to GCP - DEV
 on:
   workflow_call:
     secrets:
-      GCP_CREDENTIALS:
+      GCP_CREDENTIALS_DEV:
         required: true
 env:
-  CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+  CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_DEV }}
   ENVIRONMENT: dev
 jobs:
   initializing:
