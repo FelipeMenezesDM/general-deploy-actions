@@ -4,8 +4,16 @@ on:
     secrets:
       GCP_CREDENTIALS_DEV:
         required: true
+      GCP_PROJECT_ID_DEV:
+        required: true
+    inputs:
+      service:
+        type: string
+        required: true
 env:
   CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_DEV }}
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_DEV }}
+  SERVICE: ${{ inputs.service }}-develop
   ENVIRONMENT: dev
 jobs:
   initializing:
@@ -35,6 +43,16 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v3
+      - name: Setup backend
+        run: |
+          cat > backend.tf << EOF
+          terraform {
+            backend "gcs" {
+              bucket  = "${{ env.PROJECT_ID }}-state-files"
+              prefix  = "${{ env.SERVICE }}"
+            }
+          }
+          EOF
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
       - name: Terraform init
@@ -49,16 +67,8 @@ jobs:
         run: terraform apply -auto-approve -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
-  create-pr:
-    needs: deploy
-    name: Create PR to Homologation
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true
-    steps:
-      - name: Create PR
-        uses: actions/checkout@v3
   finishing:
-    needs: create-pr
+    needs: deploy
     name: Finishing
     runs-on: ubuntu-latest
     steps:
