@@ -51,11 +51,17 @@ jobs:
         uses: hashicorp/setup-terraform@v2
       - name: Load destruction settings
         id: destroy
-        run: echo "jsonencode(yamldecode(file(\"destroy.yml\")))" | terraform console
+        uses: fabasoad/data-format-converter-action@main
+        with:
+          input: destroy.yml
+          from: yaml
+          to: json
       - name: Terraform init
         run: terraform init
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
+      - name: Terraform destroy
+        run: echo "${{ steps.destroy.outputs.output }}"
       - name: Terraform plan
 #        if: steps.destruction-settings.outputs.data.destroy != true
         run: terraform plan -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
