@@ -54,10 +54,10 @@ jobs:
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
       - name: Load destruction settings
-        id: destruction-settings
-        run: echo "destroy="$(echo "jsonencode(yamldecode(file(\"destroy.yml\")))" | terraform console) >> $GITHUB_ENV
+        id: destroy
+        run: echo "destroy="$(echo "jsonencode(yamldecode(file(\"destroy.yml\")))" | terraform console) >> $GITHUB_OUTPUT
       - name: Terraform destroy
-        run: echo "${{ steps.destruction-settings.outputs.destroy }}"
+        run: echo ${{ steps.destroy.outputs.destroy }}
       - name: Terraform plan
 #        if: steps.destruction-settings.outputs.data.destroy != true
         run: terraform plan -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
