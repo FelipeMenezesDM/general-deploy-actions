@@ -63,7 +63,7 @@ jobs:
       - name: Terraform destroy specify resources
         if: fromJSON(steps.destroy.outputs.output).destroy.enabled == true
         run: |
-          resources=($(echo ${{ toJSON(fromJSON(steps.destroy.outputs.output).destroy.resources) }} | sed -e "s/'/\"/g" -e "s/,/ /g" -e "s/[][]//g"))
+          resources=($(echo '${{ toJSON(fromJSON(steps.destroy.outputs.output).destroy.resources) }}' | sed -e "s/'/\"/g" -e "s/,/ /g" -e "s/[][]//g"))
           if [ ${#resources[*]} -ne 0 ]; then for i in ${resources[@]}; do echo ${i}; done else echo "sem resources"; fi
       - name: Terraform plan
         if: fromJSON(steps.destroy.outputs.output).destroy.enabled != true
