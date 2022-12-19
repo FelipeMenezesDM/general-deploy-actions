@@ -50,7 +50,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
       - name: Terraform init
-        run:
+        run: >-
           terraform init
           echo "destroy="$(echo "jsonencode(yamldecode(file(\"destroy.yml\")))" | terraform console)
         env:
