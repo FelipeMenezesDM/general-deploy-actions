@@ -16,13 +16,7 @@ env:
   SERVICE: ${{ inputs.service }}-develop
   ENVIRONMENT: dev
 jobs:
-  initializing:
-    name: Initializing
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Initializing..."
   validation:
-    needs: initializing
     name: Validation
     runs-on: ubuntu-latest
     steps:
@@ -67,7 +61,7 @@ jobs:
           key-path: '["destroy"]'
       - name: Terraform destroy
 #        if: steps.destruction-settings.outputs.data == true
-        run: echo "${{ steps.yaml-data.outputs.data }}"
+        run: echo "${{ steps.destruction-settings.data }}"
       - name: Terraform plan
         if: steps.destruction-settings.outputs.data.destroy != true
         run: terraform plan -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
@@ -78,9 +72,3 @@ jobs:
         run: terraform apply -auto-approve -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
-  finishing:
-    needs: deploy
-    name: Finishing
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Finished"
