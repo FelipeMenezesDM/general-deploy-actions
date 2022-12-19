@@ -57,7 +57,8 @@ jobs:
         id: destroy
         run: echo "destroy="$(echo "jsonencode(yamldecode(file(\"destroy.yml\")))" | terraform console) >> $GITHUB_OUTPUT
       - name: Terraform destroy
-        run: echo "${{ steps.destroy.outputs }}"
+        if: steps.destroy.outputs.destroy.enabled == true
+        run: echo "TESTE"
       - name: Terraform plan
 #        if: steps.destruction-settings.outputs.data.destroy != true
         run: terraform plan -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
