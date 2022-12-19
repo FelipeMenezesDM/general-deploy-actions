@@ -50,9 +50,12 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
       - name: Terraform init
-        run: terraform init && echo "destroy="$(echo "jsonencode(yamldecode(file(\"destroy.yml\")))" | terraform console)
+        run: terraform init
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
+      - name: Load destruction settings
+        id: destroy
+        run: echo "jsonencode(yamldecode(file(\"destroy.yml\")))" | terraform console
       - name: Terraform plan
 #        if: steps.destruction-settings.outputs.data.destroy != true
         run: terraform plan -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
