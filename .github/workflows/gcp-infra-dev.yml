@@ -66,8 +66,8 @@ jobs:
           file: ./destroy.yml
           key-path: '["destroy"]'
       - name: Terraform destroy
-        if: steps.destruction-settings.outputs.data.destroy == true
-        run: terraform destroy
+#        if: steps.destruction-settings.outputs.data == true
+        run: echo "${{ steps.yaml-data.outputs.data }}"
       - name: Terraform plan
         if: steps.destruction-settings.outputs.data.destroy != true
         run: terraform plan -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
