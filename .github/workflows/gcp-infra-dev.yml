@@ -49,13 +49,11 @@ jobs:
           EOF
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
-      - name: Terraform init
-        run: terraform init
-        env:
-          GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
       - name: Load destruction settings
         id: destroy
-        run: echo "jsonencode(yamldecode(file(\"destroy.yml\")))" | terraform console -lock=false
+        run: echo "jsonencode(yamldecode(file(\"destroy.yml\")))" | terraform console
+      - name: Terraform init
+        run: terraform init
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
       - name: Terraform plan
