@@ -51,9 +51,11 @@ jobs:
         uses: hashicorp/setup-terraform@v2
       - name: Terraform init
         run: terraform init
+        id: init
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
       - name: Load destruction settings
+        if: steps.init.outcome == 'success'
         id: destroy
         run: echo "jsonencode(yamldecode(file(\"destroy.yml\")))" | terraform console
         env:
