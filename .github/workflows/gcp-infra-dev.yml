@@ -59,11 +59,22 @@ jobs:
         run: terraform init
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
+      - name: Load destruction settings
+        uses: jbutcher5/read-yaml@main
+        id: destruction-settings
+        with:
+          file: ./destroy.yml
+          key-path: [destroy]
+      - name: Terraform destroy
+        if: steps.destruction-settings.outputs.data.destroy == true
+        run: terraform destroy
       - name: Terraform plan
+        if: steps.destruction-settings.outputs.data.destroy != true
         run: terraform plan -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
       - name: Terraform apply
+        if: steps.destruction-settings.outputs.data.destroy != true
         run: terraform apply -auto-approve -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
