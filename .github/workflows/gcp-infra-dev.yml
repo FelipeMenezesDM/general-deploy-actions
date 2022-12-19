@@ -64,7 +64,7 @@ jobs:
         id: destruction-settings
         with:
           file: ./destroy.yml
-          key-path: ["destroy"]
+          key-path: '["destroy"]'
       - name: Terraform destroy
         if: steps.destruction-settings.outputs.data.destroy == true
         run: terraform destroy
