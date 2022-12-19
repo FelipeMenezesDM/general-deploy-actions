@@ -64,7 +64,7 @@ jobs:
         if: fromJSON(steps.destroy.outputs.output).destroy.enabled == true
         run: |
           resources=($(echo '${{ toJSON(fromJSON(steps.destroy.outputs.output).destroy.resources) }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g"))
-          if [ ${#resources[*]} -ne 0 ]; then for i in ${resources[@]}; do terraform destroy -target=${i} -var-file="${{ env.TF_VAR_FILE }}"; done else terraform destroy -var-file="${{ env.TF_VAR_FILE }}"; fi
+          if [ ${#resources[*]} -ne 0 ]; then for i in ${resources[@]}; do terraform destroy -target=${i} -auto-approve -var-file="${{ env.TF_VAR_FILE }}"; done else terraform destroy -auto-approve -var-file="${{ env.TF_VAR_FILE }}"; fi
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
       - name: Terraform plan
