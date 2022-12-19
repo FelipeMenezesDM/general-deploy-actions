@@ -61,7 +61,7 @@ jobs:
         env:
           GOOGLE_CREDENTIALS: ${{ env.CREDENTIALS }}
       - name: Terraform destroy
-        run: echo "${{ steps.destroy.outputs.output.destroy }}"
+        run: echo "${{ fromJSON(steps.destroy.outputs.output).destroy }}"
       - name: Terraform plan
 #        if: steps.destruction-settings.outputs.data.destroy != true
         run: terraform plan -var-file="./environments/${{ env.ENVIRONMENT }}/terraform.tfvars"
