@@ -32,7 +32,6 @@ jobs:
       - name: Validating composer.json and composer-lock.json
         run: composer validate --strict
   validate-composer-cache:
-    needs: initializing
     name: Validate / Composer Cache
     runs-on: ubuntu-latest
     steps:
@@ -45,7 +44,6 @@ jobs:
           key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-php-
   validate-install-dependencies:
-    needs: initializing
     name: Validate / Install Dependencies
     runs-on: ubuntu-latest
     steps:
@@ -54,7 +52,6 @@ jobs:
       - name: Validating dependencies
         run: composer install --prefer-dist --no-progress
   validate-phpmd:
-    needs: initializing
     name: Validate / PHPMD
     runs-on: ubuntu-latest
     steps:
