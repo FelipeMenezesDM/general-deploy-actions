@@ -24,7 +24,6 @@ env:
   ENVIRONMENT: DEV
 jobs:
   validate-composer:
-    needs: initializing
     name: Validate / Composer
     runs-on: ubuntu-latest
     steps:
