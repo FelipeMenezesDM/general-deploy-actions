@@ -16,6 +16,7 @@ on:
         type: string
         required: true
 env:
+  SHA: ${{ inputs.sha }}
   SERVICE: ${{ inputs.service }}-develop
   CONTAINER_REGISTRY: ${{ secrets.GCP_CONTAINER_REGISTRY }}
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_DEV }}
@@ -138,9 +139,11 @@ jobs:
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Create temporary VM
-        run: echo "public_ip="$(gcloud compute instances create tmp-migrate-vm --image-project=debian-cloud --image-family=debian-11 --machine-type f1-micro --network ${{ fromJSON(steps.settings.outputs.output).application.vpc }} --zone ${{ fromJSON(steps.settings.outputs.output).application.zone }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --format 'value(EXTERNAL_IP)') >> $GITHUB_OUTPUT
+        run: echo "public_ip="$(gcloud compute instances create ${{ env.SHA }} --image-project=debian-cloud --image-family=debian-11 --machine-type f1-micro --network ${{ fromJSON(steps.settings.outputs.output).application.vpc }} --zone ${{ fromJSON(steps.settings.outputs.output).application.zone }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --format 'value(EXTERNAL_IP)') >> $GITHUB_OUTPUT
       - name: Delete temporary VM (with 5 minutes delay)
-        run: echo "gcloud compute instances delete tmp-migrate-vm --zone ${{ fromJSON(steps.settings.outputs.output).application.zone }} -q" | at Now + 5 Minutes
+        run: |
+          #!/bin/sh
+          echo "gcloud compute instances delete ${{ env.SHA }} --zone ${{ fromJSON(steps.settings.outputs.output).application.zone }} -q" | at Now + 5 Minutes
       - name: Migrate
         run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "cat > /auth-gcloud.json && export GOOGLE_APPLICATION_CREDENTIALS=/auth-gcloud.json && php artisan migrate --seed && ${{ fromJSON(steps.settings.outputs.output).application.custom-migrate-script }}" < $GOOGLE_APPLICATION_CREDENTIALS
       - name: Deploy
