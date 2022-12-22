@@ -16,7 +16,6 @@ on:
         type: string
         required: true
 env:
-  SHA: ${{ inputs.sha }}
   SERVICE: ${{ inputs.service }}-develop
   CONTAINER_REGISTRY: ${{ secrets.GCP_CONTAINER_REGISTRY }}
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_DEV }}
@@ -24,11 +23,6 @@ env:
   CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_DEV }}
   ENVIRONMENT: DEV
 jobs:
-  initializing:
-    name: Initializing
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Initializing..."
   validate-composer:
     needs: initializing
     name: Validate / Composer
@@ -138,22 +132,8 @@ jobs:
         run: docker build -t ${{ env.IMAGE }} . -f app.dockerfile --build-arg APP_ENV=${{ env.ENVIRONMENT }}
       - name: Push
         run: docker push ${{ env.IMAGE }}
-      - name: Create temporary VM
-        run: echo "public_ip="$(gcloud compute instances create bastion-host-${{ env.SHA }} --image-project=debian-cloud --image-family=debian-11 --machine-type f1-micro --network ${{ fromJSON(steps.settings.outputs.output).application.vpc }} --zone ${{ fromJSON(steps.settings.outputs.output).application.zone }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --format 'value(EXTERNAL_IP)') >> $GITHUB_OUTPUT
-#      - name: Delete temporary VM (with 5 minutes delay)
-#        run: |
-#          #!/bin/sh
-#          echo "gcloud compute instances delete ${{ env.SHA }} --zone ${{ fromJSON(steps.settings.outputs.output).application.zone }} -q" | at Now + 5 Minutes
-      - name: Migrate
-        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "cat > /auth-gcloud.json && export GOOGLE_APPLICATION_CREDENTIALS=/auth-gcloud.json && php artisan migrate --seed && ${{ fromJSON(steps.settings.outputs.output).application.custom-migrate-script }}" < $GOOGLE_APPLICATION_CREDENTIALS
       - name: Deploy
         run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ fromJSON(steps.settings.outputs.output).application.region }} --memory ${{ fromJSON(steps.settings.outputs.output).application.scalling.region }} --min-instances ${{ fromJSON(steps.settings.outputs.output).application.scalling.min-instances }} --max-instances ${{ fromJSON(steps.settings.outputs.output).application.scalling.max-instances }} --platform managed --port ${{ fromJSON(steps.settings.outputs.output).application.port }} --timeout ${{ fromJSON(steps.settings.outputs.output).application.scalling.timeout }} --set-env-vars "ENABLE_SSL=${{ fromJSON(steps.settings.outputs.output).application.enable-ssl }}" --execution-environment ${{ fromJSON(steps.settings.outputs.output).application.execution-environment }} --ingress ${{ fromJSON(steps.settings.outputs.output).application.ingress }} --cpu ${{ fromJSON(steps.settings.outputs.output).application.scalling.cpu }} --concurrency ${{ fromJSON(steps.settings.outputs.output).application.scalling.concurrency }} ${{ (fromJSON(steps.settings.outputs.output).application.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --allow-unauthenticated
       - name: Ouput
         run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ fromJSON(steps.settings.outputs.output).application.region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
         id: output
-  finishing:
-    needs: deploy
-    name: Finishing
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Finished"
