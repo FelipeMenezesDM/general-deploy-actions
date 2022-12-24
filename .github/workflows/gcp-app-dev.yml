@@ -178,7 +178,7 @@ jobs:
           credentials_json: ${{ env.CREDENTIALS }}
       - name: Check if jobs exists
         id: status
-        run: echo "status="$(gcloud beta run jobs describe auth-server-develop-2 --region ${{ needs.settings.outputs.region }} --format 'value(status.conditions.status)') >> $GITHUB_OUTPUT
+        run: echo "status="$(gcloud beta run jobs describe ${{ env.SERVICE }} --region ${{ needs.settings.outputs.region }} --format 'value(status.conditions.status)') >> $GITHUB_OUTPUT
       - name: Create job if not exists
         if: ${{ steps.status.outputs.status != 'True' }}
         run: gcloud beta run jobs create ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }}
