@@ -106,20 +106,20 @@ jobs:
     name: Load application settings
     runs-on: ubuntu-latest
     outputs:
-      port: ${{ fromJSON(steps.settings.outputs.output).settings.port }}
-      region: ${{ fromJSON(steps.settings.outputs.output).settings.region }}
-      scalling-concurrency: ${{ fromJSON(steps.settings.outputs.output).settings.scalling.concurrency }}
-      scalling-min-instances: ${{ fromJSON(steps.settings.outputs.output).settings.scalling.min-instances }}
-      scalling-max-instances: ${{ fromJSON(steps.settings.outputs.output).settings.scalling.max-instances }}
-      scalling-timeout: ${{ fromJSON(steps.settings.outputs.output).settings.scalling.timeout }}
-      scalling-memory: ${{ fromJSON(steps.settings.outputs.output).settings.scalling.memory }}
-      scalling-cpu: ${{ fromJSON(steps.settings.outputs.output).settings.scalling.cpu }}
-      enable-ssl: ${{ fromJSON(steps.settings.outputs.output).settings.enable-ssl }}
-      ingress: ${{ fromJSON(steps.settings.outputs.output).settings.ingress }}
-      cpu-throttling: ${{ fromJSON(steps.settings.outputs.output).settings.cpu-throttling }}
-      execution-environment: ${{ fromJSON(steps.settings.outputs.output).settings.execution-environment }}
-      custom-bash-command: ${{ fromJSON(steps.settings.outputs.output).settings.custom-bash-command }}
-      instances: ${{ steps.sql-instances-sockets-handler.outputs.instances }}
+      port: "${{ fromJSON(steps.settings.outputs.output).settings.port }}"
+      region: "${{ fromJSON(steps.settings.outputs.output).settings.region }}"
+      scalling-concurrency: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.concurrency }}"
+      scalling-min-instances: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.min-instances }}"
+      scalling-max-instances: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.max-instances }}"
+      scalling-timeout: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.timeout }}"
+      scalling-memory: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.memory }}"
+      scalling-cpu: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.cpu }}"
+      enable-ssl: "${{ fromJSON(steps.settings.outputs.output).settings.enable-ssl }}"
+      ingress: "${{ fromJSON(steps.settings.outputs.output).settings.ingress }}"
+      cpu-throttling: "${{ fromJSON(steps.settings.outputs.output).settings.cpu-throttling }}"
+      execution-environment: "${{ fromJSON(steps.settings.outputs.output).settings.execution-environment }}"
+      custom-bash-command: "${{ fromJSON(steps.settings.outputs.output).settings.custom-bash-command }}"
+      instances: "${{ steps.sql-instances-sockets-handler.outputs.instances }}"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -132,10 +132,7 @@ jobs:
           to: json
       - name: SQL instances sockets handler
         id: sql-instances-sockets-handler
-        run: |
-          instances=($(echo '${{ toJSON(fromJSON(steps.settings.outputs.output).settings.instances) }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g"))
-          for i in ${!instances[@]}; do instances[$i]="${{ env.PROJECT_ID }}/${{ fromJSON(steps.settings.outputs.output).settings.region }}/${instances[$i]}"; done
-          if [ ${#instances[*]} -ne 0 ]; then echo "instances=--add-cloudsql-instances "$(IFS=,; echo "${instances[*]}") >> $GITHUB_OUTPUT; fi
+        run: echo "instances=("$(echo '${{ fromJSON(steps.settings.outputs.output).settings.instances }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g")")" >> $GITHUB_OUTPUT
   deploy:
     needs: settings
     name: Deploy to DEV
@@ -157,7 +154,11 @@ jobs:
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Deploy
-        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --memory ${{ needs.settings.outputs.scalling-memory }} --min-instances ${{ needs.settings.outputs.scalling-min-instances }} --max-instances ${{ needs.settings.outputs.scalling-max-instances }} --platform managed --port ${{ needs.settings.outputs.port }} --timeout ${{ needs.settings.outputs.scalling-timeout }} --set-env-vars "ENABLE_SSL=${{ needs.settings.outputs.enable-ssl }}" --execution-environment ${{ needs.settings.outputs.execution-environment }} --ingress ${{ needs.settings.outputs.ingress }} --cpu ${{ needs.settings.outputs.scalling-cpu }} --concurrency ${{ needs.settings.outputs.scalling-concurrency }} ${{ (needs.settings.outputs.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com ${{ needs.settings.outputs.instances }} --allow-unauthenticated
+        run: |
+          instances=${{ needs.settings.outputs.instances }}
+          for i in ${!instances[@]}; do instances[$i]="${{ env.PROJECT_ID }}/${{ needs.settings.outputs.region }}/${instances[$i]}"; done
+          if [ ${#instances[*]} -ne 0 ]; then instances="--add-cloudsql-instances "$(IFS=,; echo "${instances[*]}"); else instances="" fi
+          gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --memory ${{ needs.settings.outputs.scalling-memory }} --min-instances ${{ needs.settings.outputs.scalling-min-instances }} --max-instances ${{ needs.settings.outputs.scalling-max-instances }} --platform managed --port ${{ needs.settings.outputs.port }} --timeout ${{ needs.settings.outputs.scalling-timeout }} --set-env-vars "ENABLE_SSL=${{ needs.settings.outputs.enable-ssl }}" --execution-environment ${{ needs.settings.outputs.execution-environment }} --ingress ${{ needs.settings.outputs.ingress }} --cpu ${{ needs.settings.outputs.scalling-cpu }} --concurrency ${{ needs.settings.outputs.scalling-concurrency }} ${{ (needs.settings.outputs.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com $(instances) --allow-unauthenticated
       - name: Ouput
         run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ needs.settings.outputs.region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
         id: output
