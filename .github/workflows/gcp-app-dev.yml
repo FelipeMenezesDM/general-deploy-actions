@@ -99,15 +99,14 @@ jobs:
         run: php artisan passport:keys --force
       - name: Run unit tests
         run: composer run test-feature
-  deploy:
+  settings:
     needs:
       - test-unit
       - test-feature
-    name: Deploy to DEV
-    environment:
-      name: DEV
-      url: ${{ steps.output.outputs.url }}
+    name: Load application settings
     runs-on: ubuntu-latest
+    outputs:
+      s: ${{ fromJSON(steps.output.outputs.settings) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -118,6 +117,19 @@ jobs:
           input: ./infra/config/${{ env.ENVIRONMENT }}.yml
           from: yaml
           to: json
+      - name: Output settings json
+        id: output
+        run: echo "settings="${{ steps.settings.outputs.output }} >> $GITHUB_OUTPUT
+  deploy:
+    needs: settings
+    name: Deploy to DEV
+    environment:
+      name: DEV
+      url: ${{ steps.output.outputs.url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: GCP Auth
         uses: google-github-actions/auth@v1
         with:
@@ -129,7 +141,22 @@ jobs:
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Deploy
-        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ fromJSON(steps.settings.outputs.output).application.region }} --memory ${{ fromJSON(steps.settings.outputs.output).application.scalling.memory }} --min-instances ${{ fromJSON(steps.settings.outputs.output).application.scalling.min-instances }} --max-instances ${{ fromJSON(steps.settings.outputs.output).application.scalling.max-instances }} --platform managed --port ${{ fromJSON(steps.settings.outputs.output).application.port }} --timeout ${{ fromJSON(steps.settings.outputs.output).application.scalling.timeout }} --set-env-vars "ENABLE_SSL=${{ fromJSON(steps.settings.outputs.output).application.enable-ssl }}" --execution-environment ${{ fromJSON(steps.settings.outputs.output).application.execution-environment }} --ingress ${{ fromJSON(steps.settings.outputs.output).application.ingress }} --cpu ${{ fromJSON(steps.settings.outputs.output).application.scalling.cpu }} --concurrency ${{ fromJSON(steps.settings.outputs.output).application.scalling.concurrency }} ${{ (fromJSON(steps.settings.outputs.output).application.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --allow-unauthenticated
+        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.s.application.region }} --memory ${{ needs.settings.outputs.s.application.scalling.memory }} --min-instances ${{ needs.settings.outputs.s.application.scalling.min-instances }} --max-instances ${{ needs.settings.outputs.s.application.scalling.max-instances }} --platform managed --port ${{ needs.settings.outputs.s.application.port }} --timeout ${{ needs.settings.outputs.s.application.scalling.timeout }} --set-env-vars "ENABLE_SSL=${{ needs.settings.outputs.s.application.enable-ssl }}" --execution-environment ${{ needs.settings.outputs.s.application.execution-environment }} --ingress ${{ needs.settings.outputs.s.application.ingress }} --cpu ${{ needs.settings.outputs.s.application.scalling.cpu }} --concurrency ${{ needs.settings.outputs.s.application.scalling.concurrency }} ${{ (needs.settings.outputs.s.application.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --allow-unauthenticated
       - name: Ouput
-        run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ fromJSON(steps.settings.outputs.output).application.region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
+        run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ needs.settings.outputs.s.application.region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
         id: output
+#  custom-script-execution:
+#    needs: deploy
+#    name: Custom script execution
+#    enrironment:
+#      name: DEV
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: GCP Auth
+#        uses: google-github-actions/auth@v1
+#        with:
+#          credentials_json: ${{ env.CREDENTIALS }}
+#      - name: Docker Auth
+#        run: gcloud auth configure-docker ${{ env.CONTAINER_REGISTRY }} --quiet
+#      - name: Migrate
+#        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "cat > /auth-gcloud.json && export GOOGLE_APPLICATION_CREDENTIALS=/auth-gcloud.json && ${{ fromJSON(steps.settings.outputs.output).application.custom-bash-command }}" < $GOOGLE_APPLICATION_CREDENTIALS
