@@ -132,7 +132,7 @@ jobs:
           to: json
       - name: SQL instances sockets handler
         id: sql-instances-sockets-handler
-        run: echo "instances=("$(echo '${{ fromJSON(steps.settings.outputs.output).settings.instances }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g")")" >> $GITHUB_OUTPUT
+        run: echo "instances=("$(echo '${{ toJSON(fromJSON(steps.settings.outputs.output).settings.instances) }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g")")" >> $GITHUB_OUTPUT
   deploy:
     needs: settings
     name: Deploy to DEV
