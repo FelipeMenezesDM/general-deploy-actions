@@ -181,8 +181,8 @@ jobs:
         run: echo "status="$(gcloud beta run jobs describe auth-server-develop-2 --region=us-central1 --format 'value(status.conditions.status)') >> $GITHUB_OUTPUT
       - name: Create job if not exists
         if: ${{ steps.status.outputs.status != 'True' }}
-        run: gcloud beta run jobs create ${{ env.SERVICE }} --image ${{ env.IMAGE }}
+        run: gcloud beta run jobs create ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }}
       - name: Update job
-        run: gcloud beta run jobs update ${{ env.SERVICE }} --image ${{ env.IMAGE }} --args "${{ needs.settings.outputs.custom-command }}"
+        run: gcloud beta run jobs update ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --args "${{ needs.settings.outputs.custom-command }}"
       - name: Execute job
         run: gcloud beta run jobs execute ${{ env.SERVICE }} --wait
