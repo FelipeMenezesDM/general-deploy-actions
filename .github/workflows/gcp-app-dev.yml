@@ -106,7 +106,7 @@ jobs:
     name: Load application settings
     runs-on: ubuntu-latest
     outputs:
-      s: ${{ fromJSON(steps.output.outputs.settings) }}
+      s: ${{ steps.output.outputs.settings }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -141,22 +141,23 @@ jobs:
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Deploy
-        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.s.application.region }} --memory ${{ needs.settings.outputs.s.application.scalling.memory }} --min-instances ${{ needs.settings.outputs.s.application.scalling.min-instances }} --max-instances ${{ needs.settings.outputs.s.application.scalling.max-instances }} --platform managed --port ${{ needs.settings.outputs.s.application.port }} --timeout ${{ needs.settings.outputs.s.application.scalling.timeout }} --set-env-vars "ENABLE_SSL=${{ needs.settings.outputs.s.application.enable-ssl }}" --execution-environment ${{ needs.settings.outputs.s.application.execution-environment }} --ingress ${{ needs.settings.outputs.s.application.ingress }} --cpu ${{ needs.settings.outputs.s.application.scalling.cpu }} --concurrency ${{ needs.settings.outputs.s.application.scalling.concurrency }} ${{ (needs.settings.outputs.s.application.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --allow-unauthenticated
+        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ fromJSON(needs.settings.outputs.s).region }} --memory ${{ fromJSON(needs.settings.outputs.s).scalling.memory }} --min-instances ${{ fromJSON(needs.settings.outputs.s).scalling.min-instances }} --max-instances ${{ fromJSON(needs.settings.outputs.s).scalling.max-instances }} --platform managed --port ${{ fromJSON(needs.settings.outputs.s).port }} --timeout ${{ fromJSON(needs.settings.outputs.s).scalling.timeout }} --set-env-vars "ENABLE_SSL=${{ fromJSON(needs.settings.outputs.s).enable-ssl }}" --execution-environment ${{ fromJSON(needs.settings.outputs.s).execution-environment }} --ingress ${{ fromJSON(needs.settings.outputs.s).ingress }} --cpu ${{ fromJSON(needs.settings.outputs.s).scalling.cpu }} --concurrency ${{ fromJSON(needs.settings.outputs.s).scalling.concurrency }} ${{ (fromJSON(needs.settings.outputs.s).cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --allow-unauthenticated
       - name: Ouput
-        run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ needs.settings.outputs.s.application.region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
+        run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ fromJSON(needs.settings.outputs.s).region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
         id: output
-#  custom-script-execution:
-#    needs: deploy
-#    name: Custom script execution
-#    enrironment:
-#      name: DEV
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: GCP Auth
-#        uses: google-github-actions/auth@v1
-#        with:
-#          credentials_json: ${{ env.CREDENTIALS }}
-#      - name: Docker Auth
-#        run: gcloud auth configure-docker ${{ env.CONTAINER_REGISTRY }} --quiet
-#      - name: Migrate
-#        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "cat > /auth-gcloud.json && export GOOGLE_APPLICATION_CREDENTIALS=/auth-gcloud.json && ${{ fromJSON(steps.settings.outputs.output).application.custom-bash-command }}" < $GOOGLE_APPLICATION_CREDENTIALS
+  custom-bash-command-execution:
+    needs:
+      - settings
+      - deploy
+    name: Custom bash command execution
+    runs-on: ubuntu-latest
+    if: ${{ fromJSON(needs.settings.outputs.s).custom-command != '' }}
+    steps:
+      - name: GCP Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ env.CREDENTIALS }}
+      - name: Docker Auth
+        run: gcloud auth configure-docker ${{ env.CONTAINER_REGISTRY }} --quiet
+      - name: Execute custom command
+        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "cat > /auth-gcloud.json && export GOOGLE_APPLICATION_CREDENTIALS=/auth-gcloud.json && ${{ fromJSON(needs.settings.outputs.s).application.custom-bash-command }}" < $GOOGLE_APPLICATION_CREDENTIALS
