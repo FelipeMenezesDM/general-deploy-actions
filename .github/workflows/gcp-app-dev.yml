@@ -185,4 +185,4 @@ jobs:
       - name: Update job
         run: gcloud beta run jobs update ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --args "${{ needs.settings.outputs.custom-command }}"
       - name: Execute job
-        run: gcloud beta run jobs execute ${{ env.SERVICE }} --wait
+        run: gcloud beta run jobs execute ${{ env.SERVICE }} --region ${{ needs.settings.outputs.region }} --wait
