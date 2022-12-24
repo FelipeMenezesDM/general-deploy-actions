@@ -118,7 +118,7 @@ jobs:
       ingress: "${{ fromJSON(steps.settings.outputs.output).settings.ingress }}"
       cpu-throttling: "${{ fromJSON(steps.settings.outputs.output).settings.cpu-throttling }}"
       execution-environment: "${{ fromJSON(steps.settings.outputs.output).settings.execution-environment }}"
-      custom-bash-command: "${{ fromJSON(steps.settings.outputs.output).settings.custom-bash-command }}"
+      custom-command: "${{ fromJSON(steps.settings.outputs.output).settings.custom-command }}"
       instances: "${{ steps.sql-instances-sockets-handler.outputs.instances }}"
     steps:
       - name: Checkout code
@@ -164,19 +164,25 @@ jobs:
       - name: Ouput
         run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ needs.settings.outputs.region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
         id: output
-#  custom-bash-command-execution:
-#    needs:
-#      - settings
-#      - deploy
-#    name: Custom bash command execution
-#    runs-on: ubuntu-latest
-#    if: ${{ needs.settings.outputs.custom-bash-command != '' }}
-#    steps:
-#      - name: GCP Auth
-#        uses: google-github-actions/auth@v1
-#        with:
-#          credentials_json: ${{ env.CREDENTIALS }}
-#      - name: Docker Auth
-#        run: gcloud auth configure-docker ${{ env.CONTAINER_REGISTRY }} --quiet
-#      - name: Execute custom command
-#        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "cat > /auth-gcloud.json && export GOOGLE_APPLICATION_CREDENTIALS=/auth-gcloud.json && ${{ needs.settings.outputs.custom-bash-command }}" < $GOOGLE_APPLICATION_CREDENTIALS
+  custom-command-execution:
+    needs:
+      - settings
+      - deploy
+    name: Custom command execution
+    runs-on: ubuntu-latest
+    if: ${{ needs.settings.outputs.custom-command != '' }}
+    steps:
+      - name: GCP Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ env.CREDENTIALS }}
+      - name: Check if jobs exists
+        id: status
+        run: echo "status="$(gcloud beta run jobs describe auth-server-develop-2 --region=us-central1 --format 'value(status.conditions.status)') >> $GITHUB_OUTPUT
+      - name: Create job if not exists
+        if: ${{ steps.status.outputs.status != 'True' }}
+        run: gcloud beta run jobs create ${{ env.SERVICE }} --image ${{ env.IMAGE }}
+      - name: Update job
+        run: gcloud beta run jobs update ${{ env.SERVICE }} --image ${{ env.IMAGE }} --args "${{ needs.settings.outputs.custom-command }}"
+      - name: Execute job
+        run: gcloud beta run jobs execute ${{ env.SERVICE }} --wait
