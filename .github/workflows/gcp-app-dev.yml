@@ -155,9 +155,9 @@ jobs:
         run: docker push ${{ env.IMAGE }}
       - name: Deploy
         run: |
-          instancesArray=${{ needs.settings.outputs.instances }}
-          for i in ${!instancesArray[@]}; do instancesArray[$i]="${{ env.PROJECT_ID }}/${{ needs.settings.outputs.region }}/${instancesArray[$i]}"; done
-          if [ ${#instancesArray[*]} -ne 0 ]; then instances="--add-cloudsql-instances "$(IFS=,; echo "${instancesArray[*]}"); else instances="" fi
+          instances=${{ needs.settings.outputs.instances }}
+          for i in ${!instances[@]}; do instances[$i]="${{ env.PROJECT_ID }}/${{ needs.settings.outputs.region }}/${instances[$i]}"; done
+          if [ ${#instances[*]} -ne 0 ]; then instances="--add-cloudsql-instances "$(IFS=,; echo "${instances[*]}"); else instances="" fi
           gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --memory ${{ needs.settings.outputs.scalling-memory }} --min-instances ${{ needs.settings.outputs.scalling-min-instances }} --max-instances ${{ needs.settings.outputs.scalling-max-instances }} --platform managed --port ${{ needs.settings.outputs.port }} --timeout ${{ needs.settings.outputs.scalling-timeout }} --set-env-vars "ENABLE_SSL=${{ needs.settings.outputs.enable-ssl }}" --execution-environment ${{ needs.settings.outputs.execution-environment }} --ingress ${{ needs.settings.outputs.ingress }} --cpu ${{ needs.settings.outputs.scalling-cpu }} --concurrency ${{ needs.settings.outputs.scalling-concurrency }} ${{ (needs.settings.outputs.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com $($instances) --allow-unauthenticated
       - name: Ouput
         run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ needs.settings.outputs.region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
