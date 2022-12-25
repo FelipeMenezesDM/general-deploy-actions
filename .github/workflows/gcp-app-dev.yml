@@ -118,8 +118,8 @@ jobs:
       ingress: "${{ fromJSON(steps.settings.outputs.output).settings.ingress }}"
       cpu-throttling: "${{ fromJSON(steps.settings.outputs.output).settings.cpu-throttling }}"
       execution-environment: "${{ fromJSON(steps.settings.outputs.output).settings.execution-environment }}"
-      custom-command: "${{ fromJSON(steps.settings.outputs.output).settings.custom-command }}"
       instances: "${{ steps.sql-instances-sockets-handler.outputs.instances }}"
+      custom-command: "${{ fromJSON(steps.settings.outputs.output).settings.custom-command }}"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -179,6 +179,6 @@ jobs:
         if: ${{ steps.status.outputs.status != 'True' }}
         run: gcloud beta run jobs create ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }}
       - name: Update job
-        run: gcloud beta run jobs update ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --args "${{ needs.settings.outputs.custom-command }}" --max-retries 0 --task-timeout 180 --add-cloudsql-instances=${{ needs.settings.outputs.instances }}
+        run: gcloud beta run jobs update ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --args="${{ needs.settings.outputs.custom-command }}" --max-retries 0 --task-timeout 180 --add-cloudsql-instances=${{ needs.settings.outputs.instances }}
       - name: Execute job
         run: gcloud beta run jobs execute ${{ env.SERVICE }} --region ${{ needs.settings.outputs.region }} --wait
