@@ -140,7 +140,7 @@ jobs:
         id: custom-command-entrypoint-handler
         run: |
           entrypoint=($(echo '${{ toJSON(fromJSON(steps.settings.outputs.output).settings.command.entrypoint) }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g"))
-          echo "entrypoint="$(IFS=,; echo "${instances[*]}") >> $GITHUB_OUTPUT
+          echo "entrypoint="$(IFS=,; echo "${entrypoint[*]}") >> $GITHUB_OUTPUT
   deploy:
     needs: settings
     name: Deploy to DEV
