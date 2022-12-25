@@ -1,7 +1,7 @@
-# Laravel Deploy Actions 
+# General Deploy Actions
 
 ## Descrição
-Workflows para deploy de aplicações Laravel em ambiente Cloud.
+Workflows para deploy de aplicações e infraestrutura em ambiente Cloud.
 
 ## Suporte
 Atualmente os workflows estão disponíveis apenas para deploy no Google Cloud Plataform.
@@ -28,8 +28,6 @@ Para utilizar, basta realizar sua injeção como um workflow reutilizável no pr
         uses: felipemenezesdm/laravel-deploy-actions/.github/workflows/gcp-app-dev.yml@v1
         secrets: inherit
         with:
-          custom-migrate-script: php artisan make:main-client --with-secrets
           service: ${{ github.event.repository.name }}
-          port: 1080
           sha: ${{ github.sha }}
     ```

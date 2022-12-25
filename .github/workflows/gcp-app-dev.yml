@@ -2,8 +2,6 @@ name: Build and Deploy to GCP - DEV
 on:
   workflow_call:
     secrets:
-      GCP_REGION:
-        required: true
       GCP_CONTAINER_REGISTRY:
         required: true
       GCP_PROJECT_ID_DEV:
@@ -17,48 +15,15 @@ on:
       sha:
         type: string
         required: true
-      port:
-        type: string
-        required: true
-      min-instance:
-        type: string
-        required: false
-        default: 0
-      max-instance:
-        type: string
-        required: false
-        default: 4
-      memory:
-        type: string
-        required: false
-        default: 128Mi
-      custom-migrate-script:
-        type: string
-        required: false
-        default: echo 'no custom migrate script'
-      enable-ssl:
-        type: boolean
-        required: false
-        default: true
 env:
   SERVICE: ${{ inputs.service }}-develop
-  REGION: ${{ secrets.GCP_REGION }}
   CONTAINER_REGISTRY: ${{ secrets.GCP_CONTAINER_REGISTRY }}
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_DEV }}
   IMAGE: ${{ secrets.GCP_CONTAINER_REGISTRY }}/${{ secrets.GCP_PROJECT_ID_DEV }}/${{ inputs.service }}-develop:${{ inputs.sha }}
   CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_DEV }}
-  PORT: ${{ inputs.port }}
-  MIN_INSTANCE: ${{ inputs.min-instance }}
-  MAX_INSTANCE: ${{ inputs.max-instance }}
-  MEMORY: ${{ inputs.memory }}
   ENVIRONMENT: DEV
 jobs:
-  initializing:
-    name: Initializing
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Initializing..."
   validate-composer:
-    needs: initializing
     name: Validate / Composer
     runs-on: ubuntu-latest
     steps:
@@ -67,7 +32,6 @@ jobs:
       - name: Validating composer.json and composer-lock.json
         run: composer validate --strict
   validate-composer-cache:
-    needs: initializing
     name: Validate / Composer Cache
     runs-on: ubuntu-latest
     steps:
@@ -80,7 +44,6 @@ jobs:
           key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-php-
   validate-install-dependencies:
-    needs: initializing
     name: Validate / Install Dependencies
     runs-on: ubuntu-latest
     steps:
@@ -89,7 +52,6 @@ jobs:
       - name: Validating dependencies
         run: composer install --prefer-dist --no-progress
   validate-phpmd:
-    needs: initializing
     name: Validate / PHPMD
     runs-on: ubuntu-latest
     steps:
@@ -137,10 +99,50 @@ jobs:
         run: php artisan passport:keys --force
       - name: Run unit tests
         run: composer run test-feature
-  deploy:
+  settings:
     needs:
       - test-unit
       - test-feature
+    name: Load application settings
+    runs-on: ubuntu-latest
+    outputs:
+      port: "${{ fromJSON(steps.settings.outputs.output).settings.port }}"
+      region: "${{ fromJSON(steps.settings.outputs.output).settings.region }}"
+      scalling-concurrency: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.concurrency }}"
+      scalling-min-instances: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.min-instances }}"
+      scalling-max-instances: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.max-instances }}"
+      scalling-timeout: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.timeout }}"
+      scalling-memory: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.memory }}"
+      scalling-cpu: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.cpu }}"
+      enable-ssl: "${{ fromJSON(steps.settings.outputs.output).settings.enable-ssl }}"
+      ingress: "${{ fromJSON(steps.settings.outputs.output).settings.ingress }}"
+      cpu-throttling: "${{ fromJSON(steps.settings.outputs.output).settings.cpu-throttling }}"
+      execution-environment: "${{ fromJSON(steps.settings.outputs.output).settings.execution-environment }}"
+      instances: "${{ steps.sql-instances-sockets-handler.outputs.instances }}"
+      command-entrypoint: "${{ steps.custom-command-entrypoint-handler.outputs.entrypoint }}"
+      command-args: "${{ fromJSON(steps.settings.outputs.output).settings.command.args }}"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Load environment application settings
+        id: settings
+        uses: fabasoad/data-format-converter-action@main
+        with:
+          input: ./infra/config/${{ env.ENVIRONMENT }}.yml
+          from: yaml
+          to: json
+      - name: SQL instances sockets handler
+        id: sql-instances-sockets-handler
+        run: |
+          instances=($(echo '${{ toJSON(fromJSON(steps.settings.outputs.output).settings.instances) }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g"))
+          echo "instances="$(IFS=,; echo "${instances[*]}") >> $GITHUB_OUTPUT
+      - name: Custom command entrypoint handler
+        id: custom-command-entrypoint-handler
+        run: |
+          entrypoint=($(echo '${{ toJSON(fromJSON(steps.settings.outputs.output).settings.command.entrypoint) }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g"))
+          echo "entrypoint="$(IFS=,; echo "${entrypoint[*]}") >> $GITHUB_OUTPUT
+  deploy:
+    needs: settings
     name: Deploy to DEV
     environment:
       name: DEV
@@ -159,16 +161,30 @@ jobs:
         run: docker build -t ${{ env.IMAGE }} . -f app.dockerfile --build-arg APP_ENV=${{ env.ENVIRONMENT }}
       - name: Push
         run: docker push ${{ env.IMAGE }}
-      - name: Migrate
-        run: docker run --rm --entrypoint sh -i ${{ env.IMAGE }} -c "cat > /auth-gcloud.json && export GOOGLE_APPLICATION_CREDENTIALS=/auth-gcloud.json && php artisan migrate --seed && ${{ inputs.custom-migrate-script }}" < $GOOGLE_APPLICATION_CREDENTIALS
       - name: Deploy
-        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ env.REGION }} --memory ${{ env.MEMORY }} --min-instances ${{ env.MIN_INSTANCE }} --max-instances ${{ env.MAX_INSTANCE }} --platform managed --port ${{ env.PORT }} --timeout=180 --set-env-vars "ENABLE_SSL=${{ inputs.enable-ssl }}" --allow-unauthenticated
+        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --memory ${{ needs.settings.outputs.scalling-memory }} --min-instances ${{ needs.settings.outputs.scalling-min-instances }} --max-instances ${{ needs.settings.outputs.scalling-max-instances }} --platform managed --port ${{ needs.settings.outputs.port }} --timeout ${{ needs.settings.outputs.scalling-timeout }} --set-env-vars "ENABLE_SSL=${{ needs.settings.outputs.enable-ssl }}" --execution-environment ${{ needs.settings.outputs.execution-environment }} --ingress ${{ needs.settings.outputs.ingress }} --cpu ${{ needs.settings.outputs.scalling-cpu }} --concurrency ${{ needs.settings.outputs.scalling-concurrency }} ${{ (needs.settings.outputs.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --allow-unauthenticated --add-cloudsql-instances=${{ needs.settings.outputs.instances }}
       - name: Ouput
-        run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ env.REGION }} --format 'value(status.url)') >> $GITHUB_OUTPUT
+        run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ needs.settings.outputs.region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
         id: output
-  finishing:
-    needs: deploy
-    name: Finishing
+  custom-command-execution:
+    needs:
+      - settings
+      - deploy
+    name: Custom command execution
     runs-on: ubuntu-latest
+    if: ${{ needs.settings.outputs.command-entrypoint != '' && needs.settings.outputs.command-args != '' }}
     steps:
-      - run: echo "Finished"
+      - name: GCP Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ env.CREDENTIALS }}
+      - name: Check if jobs exists
+        id: status
+        run: echo "status="$(gcloud beta run jobs describe ${{ env.SERVICE }} --region ${{ needs.settings.outputs.region }} --format 'value(status.conditions.status)') >> $GITHUB_OUTPUT
+      - name: Create job if not exists
+        if: ${{ steps.status.outputs.status != 'True' }}
+        run: gcloud beta run jobs create ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }}
+      - name: Update job
+        run: gcloud beta run jobs update ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --command="${{ needs.settings.outputs.command-entrypoint }}" --args="${{ needs.settings.outputs.command-args }}" --max-retries 0 --task-timeout 180 --add-cloudsql-instances=${{ needs.settings.outputs.instances }}
+      - name: Execute job
+        run: gcloud beta run jobs execute ${{ env.SERVICE }} --region ${{ needs.settings.outputs.region }} --wait
