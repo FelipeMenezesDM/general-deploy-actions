@@ -106,6 +106,7 @@ jobs:
     name: Load application settings
     runs-on: ubuntu-latest
     outputs:
+      service_account: "${{ fromJSON(steps.settings.outputs.output).service_account }}"
       port: "${{ fromJSON(steps.settings.outputs.output).settings.port }}"
       region: "${{ fromJSON(steps.settings.outputs.output).settings.region }}"
       scalling-concurrency: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.concurrency }}"
@@ -162,7 +163,7 @@ jobs:
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Deploy
-        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --memory ${{ needs.settings.outputs.scalling-memory }} --min-instances ${{ needs.settings.outputs.scalling-min-instances }} --max-instances ${{ needs.settings.outputs.scalling-max-instances }} --platform managed --port ${{ needs.settings.outputs.port }} --timeout ${{ needs.settings.outputs.scalling-timeout }} --set-env-vars "ENABLE_SSL=${{ needs.settings.outputs.enable-ssl }}" --execution-environment ${{ needs.settings.outputs.execution-environment }} --ingress ${{ needs.settings.outputs.ingress }} --cpu ${{ needs.settings.outputs.scalling-cpu }} --concurrency ${{ needs.settings.outputs.scalling-concurrency }} ${{ (needs.settings.outputs.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ env.PROJECT_ID }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --allow-unauthenticated --add-cloudsql-instances=${{ needs.settings.outputs.instances }}
+        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --memory ${{ needs.settings.outputs.scalling-memory }} --min-instances ${{ needs.settings.outputs.scalling-min-instances }} --max-instances ${{ needs.settings.outputs.scalling-max-instances }} --platform managed --port ${{ needs.settings.outputs.port }} --timeout ${{ needs.settings.outputs.scalling-timeout }} --set-env-vars "ENABLE_SSL=${{ needs.settings.outputs.enable-ssl }}" --execution-environment ${{ needs.settings.outputs.execution-environment }} --ingress ${{ needs.settings.outputs.ingress }} --cpu ${{ needs.settings.outputs.scalling-cpu }} --concurrency ${{ needs.settings.outputs.scalling-concurrency }} ${{ (needs.settings.outputs.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ needs.settings.outputs.service_account }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --allow-unauthenticated --add-cloudsql-instances=${{ needs.settings.outputs.instances }}
       - name: Ouput
         run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ needs.settings.outputs.region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
         id: output
@@ -185,6 +186,6 @@ jobs:
         if: ${{ steps.status.outputs.status != 'True' }}
         run: gcloud beta run jobs create ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }}
       - name: Update job
-        run: gcloud beta run jobs update ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --command="${{ needs.settings.outputs.command-entrypoint }}" --args="${{ needs.settings.outputs.command-args }}" --max-retries 0 --task-timeout 180 --add-cloudsql-instances=${{ needs.settings.outputs.instances }}
+        run: gcloud beta run jobs update ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --command="${{ needs.settings.outputs.command-entrypoint }}" --args="${{ needs.settings.outputs.command-args }}" --max-retries 0 --task-timeout 180 --add-cloudsql-instances=${{ needs.settings.outputs.instances }} --service-account ${{ needs.settings.outputs.service_account }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
       - name: Execute job
         run: gcloud beta run jobs execute ${{ env.SERVICE }} --region ${{ needs.settings.outputs.region }} --wait
