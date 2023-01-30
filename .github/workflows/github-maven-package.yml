@@ -5,9 +5,6 @@ on:
       username:
         type: string
         required: true
-      password:
-        type: string
-        required: true
 jobs:
   build:
     name: Deploy
@@ -20,4 +17,4 @@ jobs:
           java-version: 11
           distribution: temurin
       - name: Deploy
-        run: mvn deploy -Drepo.username=${{ inputs.username }} -Drepo.password=${{ inputs.password }}
+        run: mvn deploy -Drepo.username=${{ inputs.username }} -Drepo.password=${{ secrets.GITHUB_TOKEN }}
