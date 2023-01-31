@@ -2,13 +2,7 @@ name: Deploy maven package to GitHub Repository
 on:
   workflow_call:
     inputs:
-      username:
-        type: string
-        required: true
       version:
-        type: string
-        required: true
-      password:
         type: string
         required: true
 jobs:
@@ -26,4 +20,4 @@ jobs:
           java-version: 11
           distribution: temurin
       - name: Deploy
-        run: mvn deploy -s settings.xml -Dpkg.version="${{ inputs.version }}" -Drepo.usrnm="${{ inputs.username }}" -Drepo.pswd="${{ inputs.password }}"
+        run: mvn deploy -s settings.xml -Dpkg.version="${{ inputs.version }}" -Drepo.usrnm="${{ github.actor }}" -Drepo.pswd="${{ github.token }}"
