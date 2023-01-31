@@ -5,10 +5,19 @@ on:
       username:
         type: string
         required: true
+      version:
+        type: string
+        required: true
+      password:
+        type: string
+        required: true
 jobs:
   build:
     name: Deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v3
       - name: Setup JDK 11
@@ -17,4 +26,4 @@ jobs:
           java-version: 11
           distribution: temurin
       - name: Deploy
-        run: mvn deploy -Drepo.username=${{ inputs.username }} -Drepo.password=${{ secrets.GITHUB_TOKEN }}
+        run: mvn deploy -s settings.xml -Dpkg.version="${{ inputs.version }}" -Drepo.usrnm="${{ inputs.username }}" -Drepo.pswd="${{ inputs.password }}"
