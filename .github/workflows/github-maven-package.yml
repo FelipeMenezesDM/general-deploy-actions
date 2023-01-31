@@ -1,0 +1,19 @@
+name: Deploy maven package to GitHub Repository
+on:
+  workflow_call:
+jobs:
+  build:
+    name: Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: 11
+          distribution: temurin
+      - name: Deploy
+        run: mvn deploy -s settings.xml -Dpkg.version="${{ github.ref_name }}" -Drepo.usrnm="${{ github.actor }}" -Drepo.pswd="${{ github.token }}"
