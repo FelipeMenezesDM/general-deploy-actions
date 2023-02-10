@@ -18,7 +18,7 @@ jobs:
       - name: CI
         run: npm ci --production
       - name: Build
-        run: tsc --declaration
+        run: npm run build
       - name: Publish
         run: npm publish
         env:
