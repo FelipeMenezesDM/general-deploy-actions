@@ -17,6 +17,8 @@ jobs:
           registry-url: https://npm.pkg.github.com
       - name: CI
         run: npm ci --production
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
       - name: Build
         run: npm run build
       - name: Publish
