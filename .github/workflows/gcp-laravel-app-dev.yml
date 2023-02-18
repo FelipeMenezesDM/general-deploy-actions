@@ -129,7 +129,7 @@ jobs:
         id: settings
         uses: fabasoad/data-format-converter-action@main
         with:
-          input: ./infra/config/${{ env.ENVIRONMENT }}.yml
+          input: ./infra/properties/${{ env.ENVIRONMENT }}.yml
           from: yaml
           to: json
       - name: SQL instances sockets handler
