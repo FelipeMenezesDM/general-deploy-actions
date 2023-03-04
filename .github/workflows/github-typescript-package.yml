@@ -9,7 +9,8 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Setup Node 16
         uses: actions/setup-node@v3
         with:
