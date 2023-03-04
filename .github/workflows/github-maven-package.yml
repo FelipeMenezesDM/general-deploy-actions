@@ -16,4 +16,4 @@ jobs:
           java-version: 11
           distribution: temurin
       - name: Deploy
-        run: mvn deploy -s settings.xml -Drepo.usrnm="${{ github.actor }}" -Drepo.pswd="${{ github.token }}"
+        run: mvn deploy -s settings.xml -Drepo.usrnm=${{ github.actor }} -Drepo.pswd=${{ github.token }}
