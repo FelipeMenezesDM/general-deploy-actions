@@ -109,12 +109,12 @@ jobs:
       service_account: "${{ fromJSON(steps.settings.outputs.output).service_account }}"
       port: "${{ fromJSON(steps.settings.outputs.output).settings.port }}"
       region: "${{ fromJSON(steps.settings.outputs.output).settings.region }}"
-      scalling-concurrency: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.concurrency }}"
-      scalling-min-instances: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.min-instances }}"
-      scalling-max-instances: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.max-instances }}"
-      scalling-timeout: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.timeout }}"
-      scalling-memory: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.memory }}"
-      scalling-cpu: "${{ fromJSON(steps.settings.outputs.output).settings.scalling.cpu }}"
+      scaling-concurrency: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.concurrency }}"
+      scaling-min-instances: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.min-instances }}"
+      scaling-max-instances: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.max-instances }}"
+      scaling-timeout: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.timeout }}"
+      scaling-memory: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.memory }}"
+      scaling-cpu: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.cpu }}"
       enable-ssl: "${{ fromJSON(steps.settings.outputs.output).settings.enable-ssl }}"
       ingress: "${{ fromJSON(steps.settings.outputs.output).settings.ingress }}"
       cpu-throttling: "${{ fromJSON(steps.settings.outputs.output).settings.cpu-throttling }}"
@@ -163,7 +163,7 @@ jobs:
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Deploy
-        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --memory ${{ needs.settings.outputs.scalling-memory }} --min-instances ${{ needs.settings.outputs.scalling-min-instances }} --max-instances ${{ needs.settings.outputs.scalling-max-instances }} --platform managed --port ${{ needs.settings.outputs.port }} --timeout ${{ needs.settings.outputs.scalling-timeout }} --set-env-vars "ENABLE_SSL=${{ needs.settings.outputs.enable-ssl }}" --execution-environment ${{ needs.settings.outputs.execution-environment }} --ingress ${{ needs.settings.outputs.ingress }} --cpu ${{ needs.settings.outputs.scalling-cpu }} --concurrency ${{ needs.settings.outputs.scalling-concurrency }} ${{ (needs.settings.outputs.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ needs.settings.outputs.service_account }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --allow-unauthenticated --add-cloudsql-instances=${{ needs.settings.outputs.instances }}
+        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --memory ${{ needs.settings.outputs.scaling-memory }} --min-instances ${{ needs.settings.outputs.scaling-min-instances }} --max-instances ${{ needs.settings.outputs.scaling-max-instances }} --platform managed --port ${{ needs.settings.outputs.port }} --timeout ${{ needs.settings.outputs.scaling-timeout }} --set-env-vars "ENABLE_SSL=${{ needs.settings.outputs.enable-ssl }}" --execution-environment ${{ needs.settings.outputs.execution-environment }} --ingress ${{ needs.settings.outputs.ingress }} --cpu ${{ needs.settings.outputs.scaling-cpu }} --concurrency ${{ needs.settings.outputs.scaling-concurrency }} ${{ (needs.settings.outputs.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ needs.settings.outputs.service_account }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --allow-unauthenticated --add-cloudsql-instances=${{ needs.settings.outputs.instances }}
       - name: Ouput
         run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ needs.settings.outputs.region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
         id: output
