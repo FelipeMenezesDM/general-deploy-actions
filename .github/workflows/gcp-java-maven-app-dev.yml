@@ -1,0 +1,167 @@
+name: Build and Deploy to GCP - DEV
+on:
+  workflow_call:
+    secrets:
+      GCP_CONTAINER_REGISTRY:
+        required: true
+      GCP_PROJECT_ID_DEV:
+        required: true
+      GCP_CREDENTIALS_DEV:
+        required: true
+    inputs:
+      service:
+        type: string
+        required: true
+      sha:
+        type: string
+        required: true
+env:
+  SERVICE: ${{ inputs.service }}-develop
+  CONTAINER_REGISTRY: ${{ secrets.GCP_CONTAINER_REGISTRY }}
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_DEV }}
+  IMAGE: ${{ secrets.GCP_CONTAINER_REGISTRY }}/${{ secrets.GCP_PROJECT_ID_DEV }}/${{ inputs.service }}-develop:${{ inputs.sha }}
+  CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_DEV }}
+  ENVIRONMENT: dev
+jobs:
+  settings:
+    name: Load application settings
+    runs-on: ubuntu-latest
+    outputs:
+      service_account: "${{ fromJSON(steps.settings.outputs.output).service_account }}"
+      port: "${{ fromJSON(steps.settings.outputs.output).settings.port }}"
+      region: "${{ fromJSON(steps.settings.outputs.output).settings.region }}"
+      scaling-concurrency: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.concurrency }}"
+      scaling-min-instances: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.min-instances }}"
+      scaling-max-instances: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.max-instances }}"
+      scaling-timeout: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.timeout }}"
+      scaling-memory: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.memory }}"
+      scaling-cpu: "${{ fromJSON(steps.settings.outputs.output).settings.scaling.cpu }}"
+      enable-ssl: "${{ fromJSON(steps.settings.outputs.output).settings.enable-ssl }}"
+      ingress: "${{ fromJSON(steps.settings.outputs.output).settings.ingress }}"
+      cpu-throttling: "${{ fromJSON(steps.settings.outputs.output).settings.cpu-throttling }}"
+      execution-environment: "${{ fromJSON(steps.settings.outputs.output).settings.execution-environment }}"
+      instances: "${{ steps.sql-instances-sockets-handler.outputs.instances }}"
+      command-entrypoint: "${{ steps.custom-command-entrypoint-handler.outputs.entrypoint }}"
+      command-args: "${{ fromJSON(steps.settings.outputs.output).settings.command.args }}"
+      logging-driver: "${{ fromJSON(steps.settings.outputs.output).logging.driver }}"
+      test-disable-unit: "${{ fromJSON(steps.settings.outputs.output).test.disable.unit }}"
+      test-disable-mutation: "${{ fromJSON(steps.settings.outputs.output).test.disable.mutation }}"
+      test-disable-integration: "${{ fromJSON(steps.settings.outputs.output).test.disable.integration }}"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Load environment application settings
+        id: settings
+        uses: fabasoad/data-format-converter-action@main
+        with:
+          input: ./infra/properties/${{ env.ENVIRONMENT }}.yml
+          from: yaml
+          to: json
+      - name: SQL instances sockets handler
+        id: sql-instances-sockets-handler
+        run: |
+          instances=($(echo '${{ toJSON(fromJSON(steps.settings.outputs.output).settings.instances) }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g"))
+          echo "instances="$(IFS=,; echo "${instances[*]}") >> $GITHUB_OUTPUT
+      - name: Custom command entrypoint handler
+        id: custom-command-entrypoint-handler
+        run: |
+          entrypoint=($(echo '${{ toJSON(fromJSON(steps.settings.outputs.output).settings.command.entrypoint) }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g"))
+          echo "entrypoint="$(IFS=,; echo "${entrypoint[*]}") >> $GITHUB_OUTPUT
+  validate-install-dependencies:
+    needs: settings
+    name: Validate / Install Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Validating dependencies
+        uses: actions/setup-java@v3.10.0
+        with:
+          java-version: 11
+          distribution: temurin
+      - name: Validating dependencies
+        run: mvn --batch-mode dependency:analyze -f ./app/pom.xml -s ./app/settings.xml -Dserver.github.username=${{ github.actor }} -Dserver.github.password=${{ github.token }}
+  test-unit:
+    needs:
+      - settings
+      - validate-install-dependencies
+    name: Test / Unit
+    runs-on: ubuntu-latest
+    if: ${{ needs.settings.outputs.test-disable-unit != 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 11
+          distribution: temurin
+      - name: Run unit tests
+        run: mvn --batch-mode clean install -f ./app/pom.xml -s ./app/settings.xml -Dserver.github.username=${{ github.actor }} -Dserver.github.password=${{ github.token }}
+  test-mutation:
+    needs:
+      - settings
+      - validate-install-dependencies
+    name: Test / Mutation
+    runs-on: ubuntu-latest
+    if: ${{ needs.settings.outputs.test-disable-mutation != 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 11
+          distribution: temurin
+      - name: Run mutation tests
+        run: mvn --batch-mode pitest:mutationCoverage -f ./app/pom.xml -s ./app/settings.xml -Dserver.github.username=${{ github.actor }} -Dserver.github.password=${{ github.token }}
+  deploy:
+    needs:
+      - settings
+      - test-unit
+      - test-mutation
+    name: Deploy to DEV
+    environment:
+      name: DEV
+      url: ${{ steps.output.outputs.url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: GCP Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ env.CREDENTIALS }}
+      - name: Docker Auth
+        run: gcloud auth configure-docker ${{ env.CONTAINER_REGISTRY }} --quiet
+      - name: Build
+        run: docker build -t ${{ env.IMAGE }} . -f app.dockerfile --build-arg APP_ENV=${{ env.ENVIRONMENT }} --build-arg GITHUB_ACTOR=${{ github.actor }} --build-arg GITHUB_TOKEN=${{ github.token }}
+      - name: Push
+        run: docker push ${{ env.IMAGE }}
+      - name: Deploy
+        run: gcloud run deploy ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --memory ${{ needs.settings.outputs.scaling-memory }} --min-instances ${{ needs.settings.outputs.scaling-min-instances }} --max-instances ${{ needs.settings.outputs.scaling-max-instances }} --platform managed --port ${{ needs.settings.outputs.port }} --timeout ${{ needs.settings.outputs.scaling-timeout }} --set-env-vars "ENABLE_SSL=${{ needs.settings.outputs.enable-ssl }}" --execution-environment ${{ needs.settings.outputs.execution-environment }} --ingress ${{ needs.settings.outputs.ingress }} --cpu ${{ needs.settings.outputs.scaling-cpu }} --concurrency ${{ needs.settings.outputs.scaling-concurrency }} ${{ (needs.settings.outputs.cpu-throttling && '--cpu-throttling') || '--no-cpu-throttling' }} --service-account ${{ needs.settings.outputs.service_account }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com --allow-unauthenticated --add-cloudsql-instances=${{ needs.settings.outputs.instances }}
+      - name: Ouput
+        run: echo "url="$(gcloud run services describe ${{ env.SERVICE }} --platform managed --region ${{ needs.settings.outputs.region }} --format 'value(status.url)') >> $GITHUB_OUTPUT
+        id: output
+  custom-command-execution:
+    needs:
+      - settings
+      - deploy
+    name: Custom command execution
+    runs-on: ubuntu-latest
+    if: ${{ needs.settings.outputs.command-entrypoint != '' && needs.settings.outputs.command-args != '' }}
+    steps:
+      - name: GCP Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ env.CREDENTIALS }}
+      - name: Check if jobs exists
+        id: status
+        run: echo "status="$(gcloud beta run jobs describe ${{ env.SERVICE }} --region ${{ needs.settings.outputs.region }} --format 'value(status.conditions.status)') >> $GITHUB_OUTPUT
+      - name: Create job if not exists
+        if: ${{ steps.status.outputs.status != 'True' }}
+        run: gcloud beta run jobs create ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }}
+      - name: Update job
+        run: gcloud beta run jobs update ${{ env.SERVICE }} --image ${{ env.IMAGE }} --region ${{ needs.settings.outputs.region }} --command="${{ needs.settings.outputs.command-entrypoint }}" --args="${{ needs.settings.outputs.command-args }}" --max-retries 0 --task-timeout 180 --add-cloudsql-instances=${{ needs.settings.outputs.instances }} --service-account ${{ needs.settings.outputs.service_account }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+      - name: Execute job
+        run: gcloud beta run jobs execute ${{ env.SERVICE }} --region ${{ needs.settings.outputs.region }} --wait
