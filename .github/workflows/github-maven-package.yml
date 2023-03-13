@@ -19,4 +19,4 @@ jobs:
           java-distribution: temurin
           maven-version: 3.8.1
       - name: Deploy
-        run: mvn --batch-mode deploy -s settings.xml -Drepo.usrnm=${{ github.actor }} -Drepo.pswd=${{ github.token }}
+        run: mvn --batch-mode deploy -s settings.xml -Dserver.github.username=${{ github.actor }} -Dserver.github.password=${{ github.token }}

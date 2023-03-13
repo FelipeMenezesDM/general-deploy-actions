@@ -21,88 +21,9 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_DEV }}
   IMAGE: ${{ secrets.GCP_CONTAINER_REGISTRY }}/${{ secrets.GCP_PROJECT_ID_DEV }}/${{ inputs.service }}-develop:${{ inputs.sha }}
   CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_DEV }}
-  ENVIRONMENT: DEV
+  ENVIRONMENT: dev
 jobs:
-  validate-composer:
-    name: Validate / Composer
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-      - name: Validating composer.json and composer-lock.json
-        run: composer validate --strict
-  validate-composer-cache:
-    name: Validate / Composer Cache
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-      - name: Validating composer cache
-        uses: actions/cache@v3
-        with:
-          path: vendor
-          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-php-
-  validate-install-dependencies:
-    name: Validate / Install Dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-      - name: Validating dependencies
-        run: composer install --prefer-dist --no-progress
-  validate-phpmd:
-    name: Validate / PHPMD
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-      - name: Executing PHPMD
-        uses: GeneaLabs/action-reviewdog-phpmd@1.0.0
-        with:
-          github_token: ${{ github.token }}
-          level: warning
-          reporter: github-check
-          standard: cleancode,codesize,controversial,design,naming,unusedcode
-          target_directory: app
-  test-unit:
-    needs:
-      - validate-composer
-      - validate-composer-cache
-      - validate-install-dependencies
-      - validate-phpmd
-    name: Test / Unit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Installing dependencies
-        run: composer install --no-progress
-      - name: Gerenate keys
-        run: php artisan passport:keys --force
-      - name: Run unit tests
-        run: composer run test-unit
-  test-feature:
-    needs:
-      - validate-composer
-      - validate-composer-cache
-      - validate-install-dependencies
-      - validate-phpmd
-    name: Test / Feature
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Installing dependencies
-        run: composer install --no-progress
-      - name: Gerenate keys
-        run: php artisan passport:keys --force
-      - name: Run unit tests
-        run: composer run test-feature
   settings:
-    needs:
-      - test-unit
-      - test-feature
     name: Load application settings
     runs-on: ubuntu-latest
     outputs:
@@ -122,6 +43,10 @@ jobs:
       instances: "${{ steps.sql-instances-sockets-handler.outputs.instances }}"
       command-entrypoint: "${{ steps.custom-command-entrypoint-handler.outputs.entrypoint }}"
       command-args: "${{ fromJSON(steps.settings.outputs.output).settings.command.args }}"
+      logging-driver: "${{ fromJSON(steps.settings.outputs.output).logging.driver }}"
+      test-disable-unit: "${{ fromJSON(steps.settings.outputs.output).test.disable.unit }}"
+      test-disable-mutation: "${{ fromJSON(steps.settings.outputs.output).test.disable.mutation }}"
+      test-disable-integration: "${{ fromJSON(steps.settings.outputs.output).test.disable.integration }}"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -142,8 +67,59 @@ jobs:
         run: |
           entrypoint=($(echo '${{ toJSON(fromJSON(steps.settings.outputs.output).settings.command.entrypoint) }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g"))
           echo "entrypoint="$(IFS=,; echo "${entrypoint[*]}") >> $GITHUB_OUTPUT
-  deploy:
+  validate-install-dependencies:
     needs: settings
+    name: Validate / Install Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Validating dependencies
+        uses: actions/setup-java@v3.10.0
+        with:
+          java-version: 11
+          distribution: temurin
+      - name: Validating dependencies
+        run: mvn --batch-mode dependency:analyze -f ./app/pom.xml -s ./app/settings.xml -Dserver.github.username=${{ github.actor }} -Dserver.github.password=${{ github.token }}
+  test-unit:
+    needs:
+      - settings
+      - validate-install-dependencies
+    name: Test / Unit
+    runs-on: ubuntu-latest
+    if: ${{ needs.settings.outputs.test-disable-unit != 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 11
+          distribution: temurin
+      - name: Run unit tests
+        run: mvn --batch-mode clean install -f ./app/pom.xml -s ./app/settings.xml -Dserver.github.username=${{ github.actor }} -Dserver.github.password=${{ github.token }}
+  test-mutation:
+    needs:
+      - settings
+      - validate-install-dependencies
+    name: Test / Mutation
+    runs-on: ubuntu-latest
+    if: ${{ needs.settings.outputs.test-disable-mutation != 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 11
+          distribution: temurin
+      - name: Run mutation tests
+        run: mvn --batch-mode pitest:mutationCoverage -f ./app/pom.xml -s ./app/settings.xml -Dserver.github.username=${{ github.actor }} -Dserver.github.password=${{ github.token }}
+  deploy:
+    needs:
+      - settings
+      - test-unit
+      - test-mutation
     name: Deploy to DEV
     environment:
       name: DEV
@@ -159,7 +135,7 @@ jobs:
       - name: Docker Auth
         run: gcloud auth configure-docker ${{ env.CONTAINER_REGISTRY }} --quiet
       - name: Build
-        run: docker build -t ${{ env.IMAGE }} . -f app.dockerfile --build-arg APP_ENV=${{ env.ENVIRONMENT }}
+        run: docker build -t ${{ env.IMAGE }} . -f app.dockerfile --build-arg APP_ENV=${{ env.ENVIRONMENT }} --build-arg GITHUB_ACTOR=${{ github.actor }} --build-arg GITHUB_TOKEN=${{ github.token }}
       - name: Push
         run: docker push ${{ env.IMAGE }}
       - name: Deploy
