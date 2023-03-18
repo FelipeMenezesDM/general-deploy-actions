@@ -42,7 +42,7 @@ jobs:
       execution-environment: "${{ fromJSON(steps.settings.outputs.output).settings.execution-environment }}"
       instances: "${{ steps.sql-instances-sockets-handler.outputs.instances }}"
       command-entrypoint: "${{ steps.custom-command-entrypoint-handler.outputs.entrypoint }}"
-      command-args: "${{ fromJSON(steps.settings.outputs.output).settings.command.args }}"
+      command-args: "${{ fromJSON(steps.settings.outputs.output).command.args }}"
       test-disable-unit: "${{ fromJSON(steps.settings.outputs.output).test.disable.unit }}"
       test-disable-mutation: "${{ fromJSON(steps.settings.outputs.output).test.disable.mutation }}"
       test-disable-integration: "${{ fromJSON(steps.settings.outputs.output).test.disable.integration }}"
@@ -64,7 +64,7 @@ jobs:
       - name: Custom command entrypoint handler
         id: custom-command-entrypoint-handler
         run: |
-          entrypoint=($(echo '${{ toJSON(fromJSON(steps.settings.outputs.output).settings.command.entrypoint) }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g"))
+          entrypoint=($(echo '${{ toJSON(fromJSON(steps.settings.outputs.output).command.entrypoint) }}' | sed -e "s/,/ /g" -e "s/[]['\"]//g"))
           echo "entrypoint="$(IFS=,; echo "${entrypoint[*]}") >> $GITHUB_OUTPUT
   validate-composer:
     needs: settings
