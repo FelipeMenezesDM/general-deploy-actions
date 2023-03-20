@@ -132,7 +132,9 @@ jobs:
       - name: Run unit tests
         run: composer run test-unit
   deploy:
-    needs: settings
+    needs:
+      - test-unit
+      - settings
     name: Deploy to DEV
     environment:
       name: DEV
